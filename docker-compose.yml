@@ -1,0 +1,206 @@
+version: '3.8'
+
+services:
+  # Redis шардированный кластер
+  redis1:
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis1-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - kion-network
+  
+  redis2:
+    image: redis:7.2-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis2-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - kion-network
+  
+  redis3:
+    image: redis:7.2-alpine
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis3-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - kion-network
+  
+  redis4:
+    image: redis:7.2-alpine
+    ports:
+      - "6382:6379"
+    volumes:
+      - redis4-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - kion-network
+  
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    networks:
+      - kion-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    depends_on:
+      - zookeeper
+    networks:
+      - kion-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: kion-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      - kafka
+    networks:
+      - kion-network
+
+  # Расширенный кластер PostgreSQL
+  postgres1:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: kion
+      POSTGRES_PASSWORD: kion_password
+      POSTGRES_DB: events_db
+    volumes:
+      - postgres1-data-v15:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - kion-network
+
+  postgres2:
+    image: postgres:15-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: kion
+      POSTGRES_PASSWORD: kion_password
+      POSTGRES_DB: events_db
+    volumes:
+      - postgres2-data-v15:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - kion-network
+
+  postgres3:
+    image: postgres:15-alpine
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: kion
+      POSTGRES_PASSWORD: kion_password
+      POSTGRES_DB: events_db
+    volumes:
+      - postgres3-data-v15:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - kion-network
+
+  # Масштабируемые экземпляры дедупликатора
+  deduplicator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # Шардированная конфигурация Redis
+      REDIS_HOST: redis1
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_HOSTS: "redis1:6379,redis2:6379,redis3:6379,redis4:6379"
+      REDIS_SHARD_COUNT: 4
+      
+      # Конфигурация Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TOPIC: product-events
+      KAFKA_GROUP_ID: event-deduplicator
+      
+      # Конфигурация PostgreSQL с шардированием
+      PG_HOSTS: "postgres1:5432,postgres2:5432,postgres3:5432"
+      PG_SHARD_COUNT: 3
+      PG_USER: kion
+      PG_PASSWORD: kion_password
+      PG_DATABASE: events_db
+      
+      # Настройки производительности
+      DEBUG: "false"
+      WORKERS: 8
+      MAX_CONCURRENCY: 1000
+    depends_on:
+      - redis1
+      - redis2
+      - redis3
+      - redis4
+      - kafka
+      - postgres1
+      - postgres2
+      - postgres3
+    restart: on-failure:5
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - kion-network
+    # Настройка ресурсов для отслеживания производительности
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+      # Возможность горизонтального масштабирования
+      replicas: 1
+
+networks:
+  kion-network:
+    driver: bridge
+
+volumes:
+  redis1-data:
+  redis2-data:
+  redis3-data:
+  redis4-data:
+  zookeeper-data:
+  zookeeper-logs:
+  kafka-data:
+  postgres1-data-v15:
+  postgres2-data-v15:
+  postgres3-data-v15: 

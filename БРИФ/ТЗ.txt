@@ -1,0 +1,214 @@
+Проблема
+По различным причинам продуктовое событие может быть отправлено несколько раз. Например, приложение подумало, что связь разорвалась, и отправило повторно. Или есть баг, из-за которого оно несколько раз отправляет одно и то же.
+
+Чтобы такие дубли не мешали аналитическим подсчетам, нужно обеспечить дедуплицирование. Чтобы многократно не учитывать время смотрения одного и того же, сильно завышая показатели тайтла. Или, страшно представить, не учитывать покупку много раз.
+
+Задача из бэклога KION
+Написать дедупликатор продуктовых событий с учетом следующих функциональных требований:
+·	микросервис — предпочтительно использовать высокопроизводительный и легковесный Python-фреймворк (FastAPI или аналогичный, обеспечивающий максимальную скорость обработки запросов); 
+·	на вход поступает 500RPS продуктовых событий (POST-запросы, в теле которых лежит JSON);
+·	одно и то же событие может быть отправлено несколько раз, считается, что оно может повториться в течение 7 дней;
+·	на выходе системы должны быть только уникальные события, они гарантированно не должны дублироваться в течение 7 дней.
+
+Критерии дедупликации событий:
+Для определения уникальности события следует использовать комбинацию следующих полей:
+·	client_id (идентификатор клиента)
+·	event_datetime (время события)
+·	event_name (тип события)
+·	product_id (идентификатор продукта)
+·	sid (идентификатор сессии)
+·	r (request id)
+
+Весь запрос выглядит следующим образом - 
+{
+	"platform" : "",
+	"event_name" : "app_list",
+	"profile_age" : -1,
+	"user_agent" : "ru.mts.mtstv\/1.1.137.74.6.1(20240214)",
+	"screen" : "",
+	"event_datetime_str" : "2025-04-02 12:15:05",
+	"event_datetime" : "2025-04-02T09:15:05.000Z",
+	"event_date" : "2025-04-02",
+	"auth_method" : "",
+	"auth_type" : "",
+	"request_id" : "",
+	"referer" : "",
+	"subscription_name" : "",
+	"subscription_id" : "",
+	"deeplink" : "",
+	"payment_type" : "",
+	"transaction_id" : "",
+	"purchase_option" : "",
+	"content_type" : "",
+	"content_gid" : "",
+	"content_name" : "",
+	"content_id" : "",
+	"promocode" : "",
+	"promocode_code" : "",
+	"quality" : "",
+	"play_url" : "",
+	"channel_name" : "",
+	"channel_id" : "",
+	"channel_gid" : "",
+	"cause" : "",
+	"button_id" : "",
+	"button_text" : "",
+	"feedback_text" : "",
+	"experiments" : "['original_videoshelf_enabled:true','auth_type:websso','subscriptions_design:new','original_screensaver_enabled:true','similar_shelf_source:mgw','autoscroll_time:7000','series_trailers_enable:true','Setting_view_show_kionostories_2_0_enable:true','glagne_filter:yes','filter_api_provider:mgw','ecosystem_profile:0','show_catchup_bookmark:true','first_purchase_opt:sd','CIS_authorization_enabled:false','AI_Voices_actors_on_pause_enabled:true','Auth_premium_status_enabled:false','moneta_subscription_button_activate:true','show_zero_series:true','moneta_sberdevices_promo_subs_1rub:true','moneta_haierdevices_promo_subs_1rub:true','vitrina_check_rkn_pin:true','vitrina_check_pc_pin:true','one_step_link_card_enabled:true','player_is_mediavitrina_analytics_enabled:false','player_tv_subtitles:false','player_tv_iptv_switch_mode:true','show_zero_series:true','moneta_cashback_hide:true','moneta_subscription_price_visible:true','moneta_parent_pin_enable:true','moneta_cashback_hide:true','moneta_content_quantity_enabled:1','moneta_promocode_iptv_visible:false','waterbase_enabled:true','moneta_avod_extended:1','Ai_Voices_music:off','moneta_tcldevices_promo_subs_1rub:true','moneta_kvantdevices_promo_subs_1rub:true','moneta_xiaomidevices_promo_subs_1rub:false','moneta_hyundaidevices_promo_subs_1rub:false','moneta_chicken_sort:1','hw_show_tv_bookmarks_tab:true','vitrina_avod_display_enabled:true','hw_show_tv_guide_button:true','hw_show_kion_channels_shelf:true','hw_tv_timer_auto_off:true','hw_auto_off_tv_time_period:28800000','hw_time_to_display_auto_off:120000','moneta_qrcard_enabled:true','hw_time_to_display_auto_off:120000','new_purchase_enabled:true','vitrina_use_rkn_pin_cache:true','ai_voices_child_mode_slider_enabled:true','vitrina_use_rkn_pin_cache:true','moneta_promocode_new_cjm_enabled:true','moneta_offer_after_unsubs:1','moneta_contra_offer_trial:false','moneta_pay_promo_immediate:false','moneta_short_svod_wo_subs:false','moneta_short_svod_trial:false','vitrina_check_age_not_auth:true','hw_catchup_shelf_status:2','moneta_is_svodpreview_price_visible:true','player_core_bandwidth_feature_enabled:true','player_core_bandwidth_life_time:240']",
+	"season" : "",
+	"episode" : "",
+	"discount_items_ids" : "[]",
+	"discount_items_names" : "[]",
+	"content_provider" : "",
+	"story_type" : "",
+	"userId" : "",
+	"playtime_ms" : null,
+	"duration" : null,
+	"client_id" : "46cfe3e87e0c097a",
+	"discount" : "[]",
+	"is_trial" : null,
+	"price" : 0,
+	"dt_add" : "2025-04-02T19:56:03.698Z",
+	"url_user_event" : "",
+	"event_receive_timestamp" : 1743623763,
+	"event_receive_dt_str" : "2025-04-02 22:56:03.665237",
+	"shelf_name" : "",
+	"shelf_index" : null,
+	"card_index" : null,
+	"error_message" : "",
+	"platform_useragent" : "",
+	"product_id" : "328da3b0-7623-443c-a3bd-dbc5a9222e75",
+	"dl" : "",
+	"fp" : "",
+	"dr" : "",
+	"mc" : null,
+	"r" : "5862759761743585305",
+	"sc" : 1,
+	"sid" : "8772092941743208318",
+	"sr" : "1920x1080",
+	"title" : "",
+	"ts" : "2025-04-02T12:15:05.012+03:00",
+	"wr" : "",
+	"cid" : "",
+	"uid" : "",
+	"ll" : "",
+	"av" : "",
+	"os" : "Android",
+	"mnf" : "SDMC",
+	"mdl" : "DV9135",
+	"os_family" : "Other",
+	"os_version" : "",
+	"is_mobile" : 0,
+	"is_pc" : 0,
+	"is_tablet" : 0,
+	"is_touch_capable" : 0,
+	"client_id_body" : "",
+	"client_id_query" : "46cfe3e87e0c097a",
+	"time" : 0,
+	"field_id" : "",
+	"field_action" : "",
+	"search_films" : "[]",
+	"recommended_films" : "[]",
+	"event_datetime_msc" : null,
+	"user_device_is_tv" : 1,
+	"input_type" : "",
+	"product_names" : "[]",
+	"product_ids" : "['[]']",
+	"prices" : "['[]']",
+	"auth_status_list" : "",
+	"isJunior" : "",
+	"waterbase_device_id" : "5C7B5C5D47CD",
+	"error_url" : "",
+	"error_severity" : 999,
+	"error_category" : 999,
+	"error_code" : "",
+	"os_build" : "",
+	"banner_type" : "",
+	"banner_id" : "",
+	"banner_gid" : "",
+	"kion_session_id" : "",
+	"popup_name" : "",
+	"popup_action" : "",
+	"app_version" : "1.1.137.74.6.1",
+	"downloaded" : -25,
+	"osv" : "",
+	"dt" : "",
+	"dm" : "",
+	"lc" : "",
+	"event_source" : "",
+	"device_id" : "",
+	"debug" : false,
+	"host" : "",
+	"path" : "",
+	"request_type" : "",
+	"code" : "",
+	"message" : "",
+	"field_text" : "",
+	"card_gid" : "",
+	"current_time" : null,
+	"card_id" : "",
+	"card_type" : "",
+	"card_name" : "",
+	"uuid" : "",
+	"term" : "",
+	"playing_mode" : "",
+	"inserted_dt" : "2025-04-02T19:56:09.000Z",
+	"build_model" : "DV9135",
+	"build_manufacturer" : "SDMC",
+	"extra_field" : "",
+	"trouble_report" : "",
+	"playback_speed" : ""
+}
+
+Вычисление хеша на основе этих полей будет использоваться для определения дубликатов.
+
+Для тестирования будет предоставлено N сообщений в JSON-формате по пути Запросы\results-1743680955719.json Также расшифровка полей будет в Запросы\Расшиврока полей.txt. Эти события нужно использовать для создания нагрузочного тестирования. Нагрузку можно создавать любым инструментом.
+
+Важное правило — нагрузочное тестирование должно быть обязательно, чтобы показать, сколько RPS выдерживает система.  
+
+Предполагаемые пути решения и архитектура системы:
+Архитектура решения должна выглядеть следующим образом:
+1. POST /event (FastAPI/Litestar endpoint)
+   ↓ (валидация + быстрый ack клиенту)
+2. Kafka/RedPanda (буферизация для пиковых нагрузок)
+   ↓ (параллельная обработка)
+3. Consumer Group (scale-out)
+   ↓ 
+4. [Этап 1: Быстрая проверка в Redis (хеш события)]
+   ↓ 
+5. [Этап 2: Точная проверка через Bloom filter или альтернативное решение]
+   ↓      
+   дубликат? → да → Отбрасываем
+         ↓ нет      
+         ↓
+6. Записываем в: 
+   - Redis (хеш+TTL=7d) 
+   - Bloom filter (опционально)
+   - Постоянное хранилище (ClickHouse/Postgres)
+   ↓
+7. Return success (или отправка в аналитическую систему)
+
+Ключевые компоненты:
+·	Задействовать очередь сообщений: предпочтительно Kafka или RedPanda, как наиболее производительное решение для высокой нагрузки.
+·	Микросервис на Python принимает события и записывает JSON в очередь.
+·	К очереди подключены консьюмеры на Python, которые обеспечивают дедуплицирование.
+·	Для хранения информации о дубликатах рекомендуется использовать Redis из-за его высокой производительности и встроенного механизма TTL (time-to-live) для автоматического удаления устаревших записей.
+·	Применить фильтр Блума в Redis для предварительной проверки наличия дубликатов (опционально): перед записью вычисляем хеш на основе ключевых полей события и проверяем его наличие в Redis. Если хеш отсутствует, записываем его в Redis с TTL 7 дней и считаем событие уникальным.
+
+Важное примечание: Фильтр Блума указан в качестве примера решения и имеет определенный процент ложноположительных срабатываний (уникальное событие может быть ошибочно идентифицировано как дубликат). Бизнес готов принять такие погрешности, однако предпочтительно реализовать решение без потерь уникальных событий, если это возможно без значительного снижения производительности.
+
+Этапы разработки
+
+Обязательно:
+Код дедупликатора на Python. Где есть метод, в который передается продуктовое событие, и на выходе какой-то результат: дубль или нет.
+
+Со звездочкой:
+Есть API с ручками приема событий и класс дедупликации.
+
+С двумя звездочками:
+Полноценная система с API для приема событий, Kafka для хранения сообщений, Redis для дедупликации, и консьюмерами, которые обрабатывают сообщения из Kafka и производят дедупликацию с помощью Redis.
+
+Ключевое тут — класс дедупликации, который должен эффективно работать с большим потоком данных. Хранение хешей в Redis обеспечит быстрый доступ и автоматическое управление сроком хранения данных.
+
+
+Версия питона 3.11.9

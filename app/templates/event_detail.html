@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block title %}Детали события - KION Event Deduplicator{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="display-5 fw-bold event-detail-title">
+        <i class="bi bi-database-fill-check text-primary me-2"></i>
+        <span class="gradient-text">Детали события</span>
+    </h1>
+    <a href="/api/ui/database" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-left me-1"></i> Назад
+    </a>
+</div>
+
+<div class="alert alert-success mb-4 animate-card">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-check-circle-fill me-3" style="font-size: 1.5rem;"></i>
+        <div>
+            <h5 class="alert-heading mb-1">Уникальное событие</h5>
+            <p class="mb-0">Событие успешно прошло дедупликацию и сохранено в базе данных</p>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 animate-card" style="animation-delay: 0.1s;">
+            <div class="card-header bg-primary text-white d-flex align-items-center">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <h5 class="mb-0">Основная информация</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <tr>
+                            <th class="w-30 bg-light">ID события в БД</th>
+                            <td>{{ event.id }}</td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">Хеш события</th>
+                            <td><code class="user-select-all">{{ event.event_hash }}</code></td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">Клиент ID</th>
+                            <td><span class="badge bg-secondary text-white user-select-all">{{ event.client_id }}</span></td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">Тип события</th>
+                            <td><span class="badge bg-info text-dark">{{ event.event_name }}</span></td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">Продукт ID</th>
+                            <td>{{ event.product_id }}</td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">Сессия (sid)</th>
+                            <td><code class="user-select-all">{{ event.sid }}</code></td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">Request ID (r)</th>
+                            <td><code class="user-select-all">{{ event.r }}</code></td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">Дата события</th>
+                            <td>{{ event.event_datetime }}</td>
+                        </tr>
+                        <tr>
+                            <th class="bg-light">Создано в БД</th>
+                            <td>{{ event.created_at|string }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 animate-card" style="animation-delay: 0.2s;">
+            <div class="card-header bg-success text-white d-flex align-items-center">
+                <i class="bi bi-device-hdd-fill me-2"></i>
+                <h5 class="mb-0">Данные устройства и пользователя</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        {% if event.full_event.platform %}
+                        <tr>
+                            <th class="w-30 bg-light">Платформа</th>
+                            <td>{{ event.full_event.platform }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.os %}
+                        <tr>
+                            <th class="bg-light">Операционная система</th>
+                            <td>
+                                {% if event.full_event.os == 'android' %}
+                                <span><i class="bi bi-android2 me-1 text-success"></i>{{ event.full_event.os }}</span>
+                                {% elif event.full_event.os == 'ios' %}
+                                <span><i class="bi bi-apple me-1"></i>{{ event.full_event.os }}</span>
+                                {% elif event.full_event.os == 'windows' %}
+                                <span><i class="bi bi-windows me-1 text-primary"></i>{{ event.full_event.os }}</span>
+                                {% elif event.full_event.os == 'macos' %}
+                                <span><i class="bi bi-apple me-1"></i>{{ event.full_event.os }}</span>
+                                {% elif event.full_event.os == 'linux' %}
+                                <span><i class="bi bi-ubuntu me-1 text-danger"></i>{{ event.full_event.os }}</span>
+                                {% else %}
+                                <span><i class="bi bi-device-hdd me-1"></i>{{ event.full_event.os }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.os_version %}
+                        <tr>
+                            <th class="bg-light">Версия ОС</th>
+                            <td>{{ event.full_event.os_version }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.user_agent %}
+                        <tr>
+                            <th class="bg-light">User Agent</th>
+                            <td class="text-truncate" title="{{ event.full_event.user_agent }}">{{ event.full_event.user_agent }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.app_version %}
+                        <tr>
+                            <th class="bg-light">Версия приложения</th>
+                            <td>{{ event.full_event.app_version }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.mnf %}
+                        <tr>
+                            <th class="bg-light">Производитель устройства</th>
+                            <td>{{ event.full_event.mnf }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.mdl %}
+                        <tr>
+                            <th class="bg-light">Модель устройства</th>
+                            <td>{{ event.full_event.mdl }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.screen %}
+                        <tr>
+                            <th class="bg-light">Экран</th>
+                            <td>{{ event.full_event.screen }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.sr %}
+                        <tr>
+                            <th class="bg-light">Разрешение экрана</th>
+                            <td>{{ event.full_event.sr }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.user_device_is_tv is not none %}
+                        <tr>
+                            <th class="bg-light">ТВ устройство</th>
+                            <td>
+                                {% if event.full_event.user_device_is_tv == 1 %}
+                                <span class="badge bg-success"><i class="bi bi-tv me-1"></i> Да</span>
+                                {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i> Нет</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 animate-card" style="animation-delay: 0.3s;">
+            <div class="card-header bg-info text-white d-flex align-items-center">
+                <i class="bi bi-film me-2"></i>
+                <h5 class="mb-0">Информация о контенте</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        {% if event.full_event.content_type %}
+                        <tr>
+                            <th class="w-30 bg-light">Тип контента</th>
+                            <td>
+                                {% if event.full_event.content_type == 'movie' %}
+                                <span><i class="bi bi-film me-1"></i>Фильм</span>
+                                {% elif event.full_event.content_type == 'series' %}
+                                <span><i class="bi bi-collection-play me-1"></i>Сериал</span>
+                                {% elif event.full_event.content_type == 'tv_channel' %}
+                                <span><i class="bi bi-broadcast-pin me-1"></i>ТВ канал</span>
+                                {% else %}
+                                <span>{{ event.full_event.content_type }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.content_name %}
+                        <tr>
+                            <th class="bg-light">Название контента</th>
+                            <td>{{ event.full_event.content_name }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.content_id %}
+                        <tr>
+                            <th class="bg-light">ID контента</th>
+                            <td>{{ event.full_event.content_id }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.content_gid %}
+                        <tr>
+                            <th class="bg-light">GID контента</th>
+                            <td>{{ event.full_event.content_gid }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.content_provider %}
+                        <tr>
+                            <th class="bg-light">Провайдер контента</th>
+                            <td>{{ event.full_event.content_provider }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.season %}
+                        <tr>
+                            <th class="bg-light">Сезон</th>
+                            <td><span class="badge bg-primary">{{ event.full_event.season }}</span></td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.episode %}
+                        <tr>
+                            <th class="bg-light">Эпизод</th>
+                            <td><span class="badge bg-primary">{{ event.full_event.episode }}</span></td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.quality %}
+                        <tr>
+                            <th class="bg-light">Качество</th>
+                            <td>
+                                {% if event.full_event.quality == 'HD' %}
+                                <span class="badge bg-info text-dark">HD</span>
+                                {% elif event.full_event.quality == 'FullHD' or event.full_event.quality == '1080p' %}
+                                <span class="badge bg-primary">FullHD</span>
+                                {% elif event.full_event.quality == '4K' or event.full_event.quality == 'UHD' %}
+                                <span class="badge bg-danger">4K UHD</span>
+                                {% else %}
+                                <span>{{ event.full_event.quality }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 animate-card" style="animation-delay: 0.4s;">
+            <div class="card-header bg-warning text-dark d-flex align-items-center">
+                <i class="bi bi-credit-card me-2"></i>
+                <h5 class="mb-0">Платежная информация</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        {% if event.full_event.payment_type %}
+                        <tr>
+                            <th class="w-30 bg-light">Тип оплаты</th>
+                            <td>
+                                {% if event.full_event.payment_type == 'subscription' %}
+                                <span><i class="bi bi-calendar-check me-1"></i>Подписка</span>
+                                {% elif event.full_event.payment_type == 'one_time' %}
+                                <span><i class="bi bi-bag-check me-1"></i>Разовая покупка</span>
+                                {% else %}
+                                <span>{{ event.full_event.payment_type }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.transaction_id %}
+                        <tr>
+                            <th class="bg-light">ID транзакции</th>
+                            <td><code class="user-select-all">{{ event.full_event.transaction_id }}</code></td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.purchase_option %}
+                        <tr>
+                            <th class="bg-light">Опция покупки</th>
+                            <td>{{ event.full_event.purchase_option }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.price is not none %}
+                        <tr>
+                            <th class="bg-light">Цена</th>
+                            <td>{{ event.full_event.price }} ₽</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.is_trial is not none %}
+                        <tr>
+                            <th class="bg-light">Пробный период</th>
+                            <td>
+                                {% if event.full_event.is_trial %}
+                                <span class="badge bg-info text-dark"><i class="bi bi-patch-check me-1"></i> Да</span>
+                                {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i> Нет</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.subscription_name %}
+                        <tr>
+                            <th class="bg-light">Название подписки</th>
+                            <td>{{ event.full_event.subscription_name }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.subscription_id %}
+                        <tr>
+                            <th class="bg-light">ID подписки</th>
+                            <td>{{ event.full_event.subscription_id }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if event.full_event.promocode %}
+                        <tr>
+                            <th class="bg-light">Промокод</th>
+                            <td><span class="badge bg-warning text-dark">{{ event.full_event.promocode }}</span></td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4 animate-card" style="animation-delay: 0.5s;">
+    <div class="card-header bg-secondary text-white d-flex align-items-center">
+        <i class="bi bi-code-slash me-2"></i>
+        <h5 class="mb-0">JSON данные события</h5>
+        <button class="btn btn-sm btn-outline-light ms-auto copy-json" data-clipboard-target="#event-json">
+            <i class="bi bi-clipboard"></i> Копировать
+        </button>
+    </div>
+    <div class="card-body">
+        <pre id="event-json" class="mb-0 user-select-all"><code>{{ event.full_event_json }}</code></pre>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    /* Стили для детальной страницы */
+    .gradient-text {
+        background: linear-gradient(90deg, var(--kion-primary), var(--kion-secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .animate-card {
+        animation: fadeIn 0.5s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .w-30 {
+        width: 30%;
+    }
+    
+    .event-detail-title {
+        animation: slideIn 0.5s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    /* Улучшения для Mobile */
+    @media (max-width: 767px) {
+        .card-header h5 {
+            font-size: 1rem;
+        }
+        
+        .card {
+            margin-bottom: 1rem;
+        }
+        
+        .table td, .table th {
+            padding: 0.5rem;
+        }
+        
+        .w-30 {
+            width: 40%;
+        }
+    }
+</style>
+
+<script>
+    // Простая реализация копирования текста
+    document.addEventListener('DOMContentLoaded', function() {
+        const copyButton = document.querySelector('.copy-json');
+        if (copyButton) {
+            copyButton.addEventListener('click', function() {
+                const textArea = document.createElement('textarea');
+                textArea.value = document.getElementById('event-json').textContent;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                // Изменение текста кнопки
+                const originalText = copyButton.innerHTML;
+                copyButton.innerHTML = '<i class="bi bi-check2"></i> Скопировано';
+                
+                // Возврат исходного текста через 2 секунды
+                setTimeout(function() {
+                    copyButton.innerHTML = originalText;
+                }, 2000);
+            });
+        }
+    });
+</script>
+{% endblock %} 
